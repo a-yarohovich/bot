@@ -1,2 +1,6 @@
+async_timeout
 python-daemon==2.1.2
 aiohttp==2.3.5
+aiopg==0.13.1
+psycopg2==2.7.3.2
+requests

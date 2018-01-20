@@ -1,1 +1,5 @@
 *.cfg
+*.idea/dictionaries/
+*.idea/inspectionProfiles/
+*.iml
+*.idea/

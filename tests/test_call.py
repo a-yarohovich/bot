@@ -3,8 +3,7 @@ import unittest
 import uuid
 from unittest.mock import Mock
 
-import async_db_adapter as db
-from core import call
+from core import call, async_db_adapter as db
 from core import global_event_loop as gloop
 from core import utilites as util
 

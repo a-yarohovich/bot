@@ -1,15 +1,18 @@
+import asyncio as aio
+import getopt
 import os
 import sys
-import getopt
-import asyncio as aio
 from typing import List
+
 import daemon
 from daemon import pidfile
-import config as cfg
+
 import async_db_adapter as db
 import global_event_loop as gloop
+from core import config as cfg
 from logger import logger
-import web_api_handler as web
+from services import exchange_factory
+from utils import async_timer
 
 LOG = logger.LOG
 
@@ -90,14 +93,26 @@ class Application(object):
             sys.exit(1)
         return True
 
-    def on_server_time_callback(self, future: aio.Future) -> None:
-        LOG.debug("on_server_time_callback." + str(future.result()))
-        sys.exit(0)
-
     def start(self):
         LOG.debug("Starting tasks for application")
-        web_handler = web.WebApiHandler(config=cfg.global_core_conf)
-        web_handler.fetch_server_time(self.on_server_time_callback)
+        host = cfg.global_core_conf.get("Exchange", "host", fallback="https://api.binance.com")
+        if "binance" in host:
+            worker = exchange_factory.ExchangeFactory.create_exchange(
+                exchange_factory.Exchanges.BINANCE,
+                config=cfg.global_core_conf
+            )
+            if worker:
+                worker.run_worker()
+            else:
+                LOG.error("Invalid worker object!")
+        else:
+            LOG.error("Did't set a name of working exchange! Abort")
+            sys.exit(1)
+        timer = async_timer.Timer(self.awake, cfg.global_core_conf.get("Exchange", "awake_timeout_sec", fallback=300))
+        timer.start()
+
+    def awake(self, future: aio.Future):
+        self.start()
 
 
 def main(argv):
