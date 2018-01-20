@@ -13,7 +13,7 @@ class Timer(object):
         self._task = None
 
     def start(self) -> bool:
-        async def _async_start_timer():
+        async def _async_f():
             try:
                 await asyncio.sleep(self._timeout)
             except Exception as ex:
@@ -26,7 +26,7 @@ class Timer(object):
             if not self._timeout:
                 raise ValueError("Did't got timeout param")
             LOG.debug("Starting timer for callback:{} and timeout:{}".format(self._callback, self._timeout))
-            self._task = gloop.push_async_task(self._callback, _async_start_timer)
+            self._task = gloop.push_async_task(self._callback, _async_f)
         except Exception as ex:
             LOG.error("Error fired with fetch_server_time:{}".format(ex.args[-1]))
             return False

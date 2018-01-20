@@ -31,7 +31,7 @@ class Application(object):
             self.init_argv_params()
             self.init_config()
             self.init_daemon_context()
-            self.init_bd_connection()
+            #self.init_bd_connection()
         except Exception as ex:
             LOG.error(ex.args[-1])
             return False
@@ -91,6 +91,7 @@ class Application(object):
     def run(self) -> bool:
         if not self.initialize():
             sys.exit(1)
+        self.start()
         return True
 
     def start(self):
@@ -110,6 +111,8 @@ class Application(object):
             sys.exit(1)
         timer = async_timer.Timer(self.awake, cfg.global_core_conf.get("Exchange", "awake_timeout_sec", fallback=300))
         timer.start()
+        self.loop.run_forever()
+
 
     def awake(self, future: aio.Future):
         self.start()

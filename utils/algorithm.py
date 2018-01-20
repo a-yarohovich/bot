@@ -1,3 +1,4 @@
+# Return count numbers after comma in float
 # Max count numbers after comma = 12
 def count_after_dot(number: float):
     s = "{:.12f}".format(number)
@@ -25,4 +26,3 @@ if __name__ == "__main__":
 
     a = 192.0
     print(f"{a:.12f}")
-

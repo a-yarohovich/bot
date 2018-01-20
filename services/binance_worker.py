@@ -565,13 +565,13 @@ class BinanceWorker(exchange_base.IExchangeBase):
             if asset["asset"] == "BTC":
                 continue
             symbol: str = asset["asset"] + "BTC"
-            total_asset_balance_qty = float(asset["free"]) + float(asset["locked"])
+            total_asset_balance = float(asset["free"]) + float(asset["locked"])
             # Find trade pair with 'BTC' on exchange in current moment for our asset
             trade_pair_for_asset = next(
                 (pr for pr in all_trade_pairs_btc if pr["symbol"] == symbol), None)
             if trade_pair_for_asset:
                 ask_in_btc: float = float(trade_pair_for_asset["askPrice"]) - 0.00000001
-                asset_cost_in_btc = total_asset_balance_qty * float(trade_pair_for_asset["lastPrice"])
+                asset_cost_in_btc = total_asset_balance * float(trade_pair_for_asset["lastPrice"])
             else:
                 raise ValueError("trade_pair_for_asset is invalid")
 
@@ -585,8 +585,8 @@ class BinanceWorker(exchange_base.IExchangeBase):
             asset_last_trade: dict = self._api_wr.my_trades_by_symbol(symbol)[0]
             min_profit_coef: float = self._config.getfloat("Exchange", "min_profit_coef", fallback=1.04)
             filter_price, filter_lot_size = self._get_filters_for_order_fast(exchange_symbols_info, symbol)
-            quantity = round(total_asset_balance_qty, alg.count_after_dot(float(filter_lot_size["stepSize"])))
-            if not quantity or total_asset_balance_qty < quantity:
+            quantity = round(total_asset_balance, alg.count_after_dot(float(filter_lot_size["stepSize"])))
+            if not quantity or total_asset_balance < quantity:
                 continue
             if ask_in_btc > (float(asset_last_trade["price"]) * min_profit_coef):
                 if not self._api_wr.create_new_order(
