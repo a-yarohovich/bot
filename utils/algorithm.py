@@ -17,8 +17,8 @@ def count_after_dot(number: float):
         return 0
 
 if __name__ == "__main__":
-    c = count_after_dot(0.01)
-    total = 0.00747224
+    c = count_after_dot(0.001)
+    total = 0.036963
     quantity = round(total, c)
     if total < quantity:
         print("error")

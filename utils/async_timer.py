@@ -23,7 +23,7 @@ class Timer(object):
         try:
             if not self._callback:
                 raise ValueError("Did't got callback param")
-            if not self._timeout:
+            if self._timeout is None:
                 raise ValueError("Did't got timeout param")
             LOG.debug("Starting timer for callback:{} and timeout:{}".format(self._callback, self._timeout))
             self._task = gloop.push_async_task(self._callback, _async_f)

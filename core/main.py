@@ -78,7 +78,7 @@ class Application(object):
 
     def init_bd_connection(self):
         gloop.push_async_task(callback_func=self.on_db_connection_done, run_func=db.async_create_pg_conn)
-        self.loop.run_forever()
+        #self.loop.run_forever()
 
     def on_db_connection_done(self, future: aio.Future):
         if not future.result():
@@ -91,8 +91,15 @@ class Application(object):
     def run(self) -> bool:
         if not self.initialize():
             sys.exit(1)
-        self.start()
+        self._async_start()
         return True
+
+    def _async_start(self):
+        timer = async_timer.Timer(self.awake, timeout_sec=0)
+        if not timer.start():
+            LOG.error("{} - unknown error".format(LOG.func_name()))
+            sys.exit(2)
+        self.loop.run_forever()
 
     def start(self):
         LOG.debug("Starting tasks for application")
@@ -103,16 +110,19 @@ class Application(object):
                 config=cfg.global_core_conf
             )
             if worker:
-                worker.run_worker()
+                LOG.info("Starting worker...")
+                try:
+                    worker.run_worker()
+                except Exception as ex:
+                    LOG.error("Unknown error has occured in worker:{}".format(ex.args[-1]))
             else:
                 LOG.error("Invalid worker object!")
         else:
             LOG.error("Did't set a name of working exchange! Abort")
             sys.exit(1)
-        timer = async_timer.Timer(self.awake, cfg.global_core_conf.get("Exchange", "awake_timeout_sec", fallback=300))
-        timer.start()
-        self.loop.run_forever()
-
+        timer = async_timer.Timer(self.awake, cfg.global_core_conf.getint("Exchange", "awake_timeout_sec", fallback=300))
+        if not timer.start():
+            sys.exit(2)
 
     def awake(self, future: aio.Future):
         self.start()

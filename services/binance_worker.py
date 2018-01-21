@@ -47,7 +47,7 @@ class ApiWrapperMain(ApiWrapperBase):
 
     def exchange_symbols_info(self) -> List[dict]:
         res = self._api.exchange_info()["symbols"]
-        LOG.debug(res, content_type="json")
+        LOG.debug(res, content_type="json", max_symbols=1024)
         return res
 
     def create_new_order(
@@ -66,7 +66,8 @@ class ApiWrapperMain(ApiWrapperBase):
             quantity=quantity,
             timestamp=tm.utc_timestamp(),
             price=price,
-            timeInForce=time_in_force
+            timeInForce=time_in_force,
+            recvWindow=5000
         )
         LOG.debug(res, content_type="json")
         return "code" not in res and "msg" not in res
@@ -84,7 +85,7 @@ class ApiWrapperMain(ApiWrapperBase):
     def open_orders_by_side(self, order_side: str) -> List[dict]:
         open_orders_lst: List[dict] = self._api.query_open_orders(timestamp=tm.utc_timestamp(), recvWindow=5000)
         res = list(filter(lambda order: order["side"] == order_side, open_orders_lst))
-        LOG.debug(res, content_type="json")
+        LOG.debug(res, content_type="json", max_symbols=1024)
         return res
 
     def sorted_trade_pairs_btc(self) -> List[dict]:
@@ -106,7 +107,7 @@ class ApiWrapperMain(ApiWrapperBase):
                 pairs_lst
             )
         res = sorted(only_btc_pairs_lst, key=sort_func, reverse=True)
-        LOG.debug(res, content_type="json")
+        LOG.debug(res, content_type="json", max_symbols=1024)
         return res
 
     def acc_balance_for_assets(self) -> List[dict]:
@@ -541,16 +542,16 @@ class BinanceWorker(exchange_base.IExchangeBase):
 
             all_trade_pairs_btc: List[dict] = self._api_wr.sorted_trade_pairs_btc()
             potential_buy_list: List[dict] = all_trade_pairs_btc[:]
-            my_acc_balance_assets: List[dict] = self._api_wr.acc_balance_for_assets()
+            acc_balance_assets_info: List[dict] = self._api_wr.acc_balance_for_assets()
             exchange_symbols_info: List[dict] = self._api_wr.exchange_symbols_info()
 
             if not all_trade_pairs_btc \
                     or not potential_buy_list \
-                    or not my_acc_balance_assets \
+                    or not acc_balance_assets_info \
                     or not exchange_symbols_info:
                 raise ValueError("Something went wrong and one from mandatory params are None")
 
-            self._generete_sell_orders_slow(all_trade_pairs_btc, my_acc_balance_assets, potential_buy_list, exchange_symbols_info)
+            self._generete_sell_orders_slow(all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list, exchange_symbols_info)
             self._generate_buy_orders_slow(potential_buy_list, exchange_symbols_info)
 
         except Exception as ex:
@@ -559,19 +560,19 @@ class BinanceWorker(exchange_base.IExchangeBase):
             LOG.info("BinanceWorker is shutting down!")
             self.release()
 
-    def _generete_sell_orders_slow(self, all_trade_pairs_btc, my_acc_balance_assets, potential_buy_list, exchange_symbols_info):
+    def _generete_sell_orders_slow(self, all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list, exchange_symbols_info):
         # Loop for all of my assets except 'BTC' and create 'SELL' orders
-        for asset in my_acc_balance_assets:
+        for asset in acc_balance_assets_info:
             if asset["asset"] == "BTC":
                 continue
             symbol: str = asset["asset"] + "BTC"
-            total_asset_balance = float(asset["free"]) + float(asset["locked"])
+            free_asset_balance = float(asset["free"])
             # Find trade pair with 'BTC' on exchange in current moment for our asset
             trade_pair_for_asset = next(
                 (pr for pr in all_trade_pairs_btc if pr["symbol"] == symbol), None)
             if trade_pair_for_asset:
                 ask_in_btc: float = float(trade_pair_for_asset["askPrice"]) - 0.00000001
-                asset_cost_in_btc = total_asset_balance * float(trade_pair_for_asset["lastPrice"])
+                asset_cost_in_btc = free_asset_balance * float(trade_pair_for_asset["lastPrice"])
             else:
                 raise ValueError("trade_pair_for_asset is invalid")
 
@@ -585,8 +586,9 @@ class BinanceWorker(exchange_base.IExchangeBase):
             asset_last_trade: dict = self._api_wr.my_trades_by_symbol(symbol)[0]
             min_profit_coef: float = self._config.getfloat("Exchange", "min_profit_coef", fallback=1.04)
             filter_price, filter_lot_size = self._get_filters_for_order_fast(exchange_symbols_info, symbol)
-            quantity = round(total_asset_balance, alg.count_after_dot(float(filter_lot_size["stepSize"])))
-            if not quantity or total_asset_balance < quantity:
+            quantity = round(free_asset_balance, alg.count_after_dot(float(filter_lot_size["stepSize"])))
+            if not quantity or free_asset_balance < quantity:
+                # TODO продумать то делать с округлением к step в большую сторону. Никогда не пройду эту проверку, так как quantity > free_asset_balance
                 continue
             if ask_in_btc > (float(asset_last_trade["price"]) * min_profit_coef):
                 if not self._api_wr.create_new_order(
@@ -621,7 +623,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
             if not bid or bid > float(filter_price["maxPrice"]) or bid < float(filter_price["minPrice"]):
                 continue
             # Calculate quantity
-            my_btc_asset_info = self._acc_btc_info()
+            my_btc_asset_info = self._acc_btc_info_slow()
             quantity = round(float(my_btc_asset_info["free"]) / bid,
                              alg.count_after_dot(float(filter_lot_size["stepSize"])))
             if not quantity:
@@ -636,8 +638,13 @@ class BinanceWorker(exchange_base.IExchangeBase):
             ):
                 continue
 
-    def _acc_btc_info(self):
-        pass
+    def _acc_btc_info_slow(self) -> dict:
+        # query every time in loop because lod value is not represented
+        acc_balance_for_assets = self._api_wr.acc_balance_for_assets()
+        for asset in acc_balance_for_assets:
+            if asset["asset"] == "BTC":
+                return asset
+        raise ValueError("Don't have BTC info in my account assets list")
 
     @staticmethod
     def _get_filters_for_order_fast(exchange_symbols_info, symbol):
