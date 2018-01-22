@@ -1,15 +1,11 @@
 from logger import logger
 
 LOG = logger.LOG
-worker=None
 
 
 class IExchangeBase(object):
     def run_worker(self):
-        global worker
-        worker = self
+        pass
 
     def release(self):
-        global worker
-        if worker:
-            del worker
+        pass

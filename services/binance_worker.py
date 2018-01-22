@@ -93,7 +93,8 @@ class ApiWrapperMain(ApiWrapperBase):
             ask = float(key["askPrice"])
             bid = float(key["bidPrice"])
             volume24h = float(key["quoteVolume"])
-            rank = ((ask - bid) / bid) * volume24h
+            change_percent = float(key["priceChangePercent"])
+            rank = ((ask - bid) / bid) * volume24h * (1 + (change_percent / 100))
             LOG.debug("symbol:{} rank:{}".format(key["symbol"], str(rank)))
             return rank
 
@@ -359,105 +360,131 @@ class ApiWrapperTest(ApiWrapperBase):
 
     def sorted_trade_pairs_btc(self) -> List[dict]:
         res = """
-        [{
-            "symbol": "ETHBTC",
-            "priceChange": "-0.00136600",
-            "priceChangePercent": "-1.509",
-            "weightedAvgPrice": "0.09063035",
-            "prevClosePrice": "0.09053200",
-            "lastPrice": "0.08917400",
-            "lastQty": "2.84200000",
-            "bidPrice": "0.08901700",
-            "bidQty": "2.84300000",
-            "askPrice": "0.08917500",
-            "askQty": "0.11200000",
-            "openPrice": "0.09054000",
-            "highPrice": "0.09300000",
-            "lowPrice": "0.08790000",
-            "volume": "225326.98700000",
-            "quoteVolume": "20421.46389541",
-            "openTime": 1516348099976,
-            "closeTime": 1516434499976,
-            "firstId": 23588603,
-            "lastId": 24005148,
-            "count": 416546
+        [
+          {
+            "symbol": "EOSBTC",
+            "priceChange": "0.00009821",
+            "priceChangePercent": "8.576",
+            "weightedAvgPrice": "0.00118724",
+            "prevClosePrice": "0.00114519",
+            "lastPrice": "0.00124340",
+            "lastQty": "1.00000000",
+            "bidPrice": "0.00124214",
+            "bidQty": "30.00000000",
+            "askPrice": "0.00124340",
+            "askQty": "3.00000000",
+            "openPrice": "0.00114519",
+            "highPrice": "0.00130000",
+            "lowPrice": "0.00109300",
+            "volume": "6393110.00000000",
+            "quoteVolume": "7590.18247559",
+            "openTime": 1516535006924,
+            "closeTime": 1516621406924,
+            "firstId": 4045016,
+            "lastId": 4160476,
+            "count": 115461
           },
           {
-            "symbol": "LTCBTC",
-            "priceChange": "-0.00057400",
-            "priceChangePercent": "-3.400",
-            "weightedAvgPrice": "0.01668581",
-            "prevClosePrice": "0.01679900",
-            "lastPrice": "0.01630600",
-            "lastQty": "0.52000000",
-            "bidPrice": "0.01628500",
-            "bidQty": "5.16000000",
-            "askPrice": "0.01631000",
-            "askQty": "8.94000000",
-            "openPrice": "0.01688000",
-            "highPrice": "0.01696400",
-            "lowPrice": "0.01620100",
-            "volume": "121125.22000000",
-            "quoteVolume": "2021.07237290",
-            "openTime": 1516348099784,
-            "closeTime": 1516434499784,
-            "firstId": 5477004,
-            "lastId": 5526041,
-            "count": 49038
+            "symbol": "SNTBTC",
+            "priceChange": "-0.00000031",
+            "priceChangePercent": "-1.205",
+            "weightedAvgPrice": "0.00002508",
+            "prevClosePrice": "0.00002575",
+            "lastPrice": "0.00002541",
+            "lastQty": "274.00000000",
+            "bidPrice": "0.00002535",
+            "bidQty": "2963.00000000",
+            "askPrice": "0.00002541",
+            "askQty": "1166.00000000",
+            "openPrice": "0.00002572",
+            "highPrice": "0.00002687",
+            "lowPrice": "0.00002390",
+            "volume": "11379364.00000000",
+            "quoteVolume": "285.35789888",
+            "openTime": 1516535005980,
+            "closeTime": 1516621405980,
+            "firstId": 1584774,
+            "lastId": 1593206,
+            "count": 8433
           },
           {
-            "symbol": "BNBBTC",
-            "priceChange": "-0.00001670",
-            "priceChangePercent": "-1.290",
-            "weightedAvgPrice": "0.00129709",
-            "prevClosePrice": "0.00129470",
-            "lastPrice": "0.00127790",
-            "lastQty": "294.18000000",
-            "bidPrice": "0.00127660",
-            "bidQty": "18.06000000",
-            "askPrice": "0.00127780",
-            "askQty": "69.00000000",
-            "openPrice": "0.00129460",
-            "highPrice": "0.00132650",
-            "lowPrice": "0.00125000",
-            "volume": "2491698.64000000",
-            "quoteVolume": "3231.96716569",
-            "openTime": 1516348099960,
-            "closeTime": 1516434499960,
-            "firstId": 7038445,
-            "lastId": 7134298,
-            "count": 95854
+            "symbol": "ETCETH",
+            "priceChange": "0.00032000",
+            "priceChangePercent": "1.094",
+            "weightedAvgPrice": "0.02934776",
+            "prevClosePrice": "0.02924700",
+            "lastPrice": "0.02956700",
+            "lastQty": "20.35000000",
+            "bidPrice": "0.02949500",
+            "bidQty": "636.33000000",
+            "askPrice": "0.02956700",
+            "askQty": "35.36000000",
+            "openPrice": "0.02924700",
+            "highPrice": "0.03072300",
+            "lowPrice": "0.02836000",
+            "volume": "96461.83000000",
+            "quoteVolume": "2830.93819821",
+            "openTime": 1516535005296,
+            "closeTime": 1516621405296,
+            "firstId": 547099,
+            "lastId": 553958,
+            "count": 6860
           },
           {
-            "symbol": "NEOBTC",
-            "priceChange": "-0.00107500",
-            "priceChangePercent": "-8.515",
-            "weightedAvgPrice": "0.01211788",
-            "prevClosePrice": "0.01262400",
-            "lastPrice": "0.01155000",
-            "lastQty": "0.17000000",
-            "bidPrice": "0.01152400",
-            "bidQty": "108.06000000",
-            "askPrice": "0.01155000",
-            "askQty": "1.27000000",
-            "openPrice": "0.01262500",
-            "highPrice": "0.01289000",
-            "lowPrice": "0.01122700",
-            "volume": "400967.49000000",
-            "quoteVolume": "4858.87546368",
-            "openTime": 1516348099948,
-            "closeTime": 1516434499948,
-            "firstId": 6566166,
-            "lastId": 6648636,
-            "count": 82471
-          }]
+            "symbol": "ETCBTC",
+            "priceChange": "0.00005700",
+            "priceChangePercent": "2.140",
+            "weightedAvgPrice": "0.00268113",
+            "prevClosePrice": "0.00266300",
+            "lastPrice": "0.00272000",
+            "lastQty": "17.92000000",
+            "bidPrice": "0.00271800",
+            "bidQty": "195.61000000",
+            "askPrice": "0.00272200",
+            "askQty": "653.61000000",
+            "openPrice": "0.00266300",
+            "highPrice": "0.00282000",
+            "lowPrice": "0.00258000",
+            "volume": "322692.60000000",
+            "quoteVolume": "865.18123877",
+            "openTime": 1516535006490,
+            "closeTime": 1516621406490,
+            "firstId": 2450000,
+            "lastId": 2477595,
+            "count": 27596
+          },
+          {
+            "symbol": "MTHBTC",
+            "priceChange": "-0.00000130",
+            "priceChangePercent": "-5.242",
+            "weightedAvgPrice": "0.00002428",
+            "prevClosePrice": "0.00002481",
+            "lastPrice": "0.00002350",
+            "lastQty": "1036.00000000",
+            "bidPrice": "0.00002351",
+            "bidQty": "1031.00000000",
+            "askPrice": "0.00002369",
+            "askQty": "4403.00000000",
+            "openPrice": "0.00002480",
+            "highPrice": "0.00002580",
+            "lowPrice": "0.00002300",
+            "volume": "6081942.00000000",
+            "quoteVolume": "147.65347992",
+            "openTime": 1516535006835,
+            "closeTime": 1516621406835,
+            "firstId": 723841,
+            "lastId": 729187,
+            "count": 5347
+          }         
+        ]
         """
 
         def sort_func(key):
             ask = float(key["askPrice"])
             bid = float(key["bidPrice"])
             volume24h = float(key["quoteVolume"])
-            rank = ((ask - bid) / bid) * volume24h
+            change_percent = float(key["priceChangePercent"])
+            rank = ((ask - bid) / bid) * volume24h * (1 + (change_percent / 100))
             LOG.debug("symbol:{} rank:{}".format(key["symbol"], str(rank)))
             return rank
 
@@ -539,20 +566,20 @@ class BinanceWorker(exchange_base.IExchangeBase):
             my_open_orders_buy[:] = [order for order in my_open_orders_buy if not self._api_wr.cancel_order(order)]
             if my_open_orders_buy:
                 raise ValueError("Did't close all open orders for 'BUY' side")
-
             all_trade_pairs_btc: List[dict] = self._api_wr.sorted_trade_pairs_btc()
             potential_buy_list: List[dict] = all_trade_pairs_btc[:]
             acc_balance_assets_info: List[dict] = self._api_wr.acc_balance_for_assets()
             exchange_symbols_info: List[dict] = self._api_wr.exchange_symbols_info()
-
+            initial_btc_info: dict = next((asset for asset in acc_balance_assets_info if asset["asset"] == "BTC"), None)
             if not all_trade_pairs_btc \
                     or not potential_buy_list \
                     or not acc_balance_assets_info \
-                    or not exchange_symbols_info:
+                    or not exchange_symbols_info\
+                    or not initial_btc_info:
                 raise ValueError("Something went wrong and one from mandatory params are None")
 
-            self._generete_sell_orders_slow(all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list, exchange_symbols_info)
-            self._generate_buy_orders_slow(potential_buy_list, exchange_symbols_info)
+            self._generate_sell_orders_slow(all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list, exchange_symbols_info)
+            self._generate_buy_orders_slow(potential_buy_list, exchange_symbols_info, initial_btc_info)
 
         except Exception as ex:
             LOG.error("Unknown exception has fired. Type:{} msg:{}".format(type(ex), ex.args[-1]))
@@ -560,37 +587,43 @@ class BinanceWorker(exchange_base.IExchangeBase):
             LOG.info("BinanceWorker is shutting down!")
             self.release()
 
-    def _generete_sell_orders_slow(self, all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list, exchange_symbols_info):
+    def _generate_sell_orders_slow(self, all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list, exchange_symbols_info):
         # Loop for all of my assets except 'BTC' and create 'SELL' orders
         for asset in acc_balance_assets_info:
+            LOG.debug("Try to generate 'SELL' orders for asset:{}".format(asset["asset"]))
             if asset["asset"] == "BTC":
                 continue
             symbol: str = asset["asset"] + "BTC"
             free_asset_balance = float(asset["free"])
+            total_asset_balance = free_asset_balance + float(asset["locked"])
             # Find trade pair with 'BTC' on exchange in current moment for our asset
-            trade_pair_for_asset = next(
-                (pr for pr in all_trade_pairs_btc if pr["symbol"] == symbol), None)
-            if trade_pair_for_asset:
-                ask_in_btc: float = float(trade_pair_for_asset["askPrice"]) - 0.00000001
-                asset_cost_in_btc = free_asset_balance * float(trade_pair_for_asset["lastPrice"])
+            curr_trade_info_for_asset = next((pr for pr in all_trade_pairs_btc if pr["symbol"] == symbol), None)
+            if curr_trade_info_for_asset:
+                ask_in_btc: float = float(curr_trade_info_for_asset["askPrice"]) - 0.00000001
+                total_asset_cost_in_btc = total_asset_balance * float(curr_trade_info_for_asset["lastPrice"])
             else:
-                raise ValueError("trade_pair_for_asset is invalid")
-
+                raise ValueError("curr_trade_info_for_asset is invalid")
             # If asset already bought early we don't buy it again
             asset_in_buy_lst = next((pr for pr in potential_buy_list if pr["symbol"] == symbol), None)
-            min_allow_lots_size_in_btc = self._config.getfloat("Exchange", "min_lots_size_in_btc", fallback=0.0001)
-            if asset_in_buy_lst and asset_cost_in_btc > min_allow_lots_size_in_btc:
+            cfg_min_allow_lots_size_in_btc = self._config.getfloat("Exchange", "min_lots_size_in_btc", fallback=0.0001)
+            if asset_in_buy_lst and total_asset_cost_in_btc > cfg_min_allow_lots_size_in_btc:
                 potential_buy_list.remove(asset_in_buy_lst)
 
             # Analise for new 'SELL' order
-            asset_last_trade: dict = self._api_wr.my_trades_by_symbol(symbol)[0]
-            min_profit_coef: float = self._config.getfloat("Exchange", "min_profit_coef", fallback=1.04)
-            filter_price, filter_lot_size = self._get_filters_for_order_fast(exchange_symbols_info, symbol)
-            quantity = round(free_asset_balance, alg.count_after_dot(float(filter_lot_size["stepSize"])))
+            cfg_min_profit_coef: float = self._config.getfloat("Exchange", "min_profit_coef", fallback=1.04)
+            filter_price, filter_lot_size, filter_notional =\
+                self._get_filters_for_order_fast(exchange_symbols_info, symbol)
+            accuracy = alg.count_after_dot(float(filter_lot_size["stepSize"]))
+            quantity = float(asset["free"][:accuracy+1])
+            LOG.debug("Dump variables after Qty calculating. "
+                      "quantity:{}, accuracy:{}, cfg_min_profit_coef:{}, total_asset_cost_in_btc:{}, ask_in_btc:{}"
+                      .format(quantity, accuracy, cfg_min_profit_coef, total_asset_cost_in_btc, ask_in_btc))
             if not quantity or free_asset_balance < quantity:
-                # TODO продумать то делать с округлением к step в большую сторону. Никогда не пройду эту проверку, так как quantity > free_asset_balance
+                LOG.debug("Quantity too low for trading. Continue".format(quantity))
                 continue
-            if ask_in_btc > (float(asset_last_trade["price"]) * min_profit_coef):
+            asset_last_trade: dict = self._api_wr.my_trades_by_symbol(symbol)[0]
+            LOG.debug(asset_last_trade, content_type="json")
+            if ask_in_btc > (float(asset_last_trade["price"]) * cfg_min_profit_coef):
                 if not self._api_wr.create_new_order(
                         symbol=symbol,
                         side=api.BnApiEnums.ORDER_SIDE_SELL,
@@ -601,8 +634,10 @@ class BinanceWorker(exchange_base.IExchangeBase):
                 ):
                     continue
             else:
-                loss_time: int = self._config.getint("Exchange", "loss_time_sec", fallback=604800)  # default - 7 days
-                if (tm.utc_timestamp() - int(asset_last_trade["time"])) > loss_time:
+                LOG.debug("Check for loss time for symbol: {}".format(symbol))
+                cfg_loss_time: int = self._config.getint("Exchange", "loss_time_sec", fallback=604800)  # default - 7 days
+                if (tm.utc_timestamp() - int(asset_last_trade["time"])) > cfg_loss_time:
+                    LOG.debug("loss time has reached. Create order for sell: {}".format(symbol))
                     if not self._api_wr.create_new_order(
                             symbol=symbol,
                             side=api.BnApiEnums.ORDER_SIDE_SELL,
@@ -611,21 +646,39 @@ class BinanceWorker(exchange_base.IExchangeBase):
                     ):
                         continue
 
-    def _generate_buy_orders_slow(self, potential_buy_list, exchange_symbols_info):
+    def _generate_buy_orders_slow(self, potential_buy_list, exchange_symbols_info, initial_btc_info):
         # Loop for all potential_buy_list and create 'BUY' order
-        trade_prs_lim = self._config.getint("Exchange", "trade_pairs_limit", fallback=10)
-        potential_buy_list = potential_buy_list[0:trade_prs_lim]
-        for buy_pair in potential_buy_list:
+        cfg_trade_prs_lim = self._config.getint("Exchange", "trade_pairs_limit", fallback=10)
+        init_free_btc_balance = float(initial_btc_info["free"])
+        for buy_pair in potential_buy_list[0:cfg_trade_prs_lim]:
             symbol = buy_pair["symbol"]
-            filter_price, filter_lot_size = self._get_filters_for_order_fast(exchange_symbols_info, symbol)
+            LOG.debug("Try to generate 'BUY' orders for symbol:{}".format(symbol))
+            filter_price, filter_lot_size, filter_notional = \
+                self._get_filters_for_order_fast(exchange_symbols_info, symbol)
+            available_btc_balance = init_free_btc_balance / cfg_trade_prs_lim
+            min_btc_balance_size = float(filter_notional["minNotional"])
+            if available_btc_balance < min_btc_balance_size:
+                LOG.debug("Insufficient btc balance = {0} with minimum balance = {1}."
+                          " Try to increase available balance to initial value = {2}"
+                          .format(f"{available_btc_balance:.8f}",
+                                  f"{min_btc_balance_size:.8f}",
+                                  f"{init_free_btc_balance:.8f}"))
+                if init_free_btc_balance > min_btc_balance_size:
+                    available_btc_balance = min_btc_balance_size
+                else:
+                    LOG.debug("Insufficient btc balance. Stop generating.")
+                    return
+            else:
+                init_free_btc_balance = init_free_btc_balance - available_btc_balance
             # Calculate bid
             bid = float(buy_pair["bidPrice"]) + float(filter_price["tickSize"])
             if not bid or bid > float(filter_price["maxPrice"]) or bid < float(filter_price["minPrice"]):
                 continue
             # Calculate quantity
-            my_btc_asset_info = self._acc_btc_info_slow()
-            quantity = round(float(my_btc_asset_info["free"]) / bid,
-                             alg.count_after_dot(float(filter_lot_size["stepSize"])))
+            accuracy = alg.count_after_dot(float(filter_lot_size["stepSize"]))
+            quantity = available_btc_balance / bid
+            # Reduce quantity according to minimum step size
+            quantity = float(f"{quantity:.8f}"[:accuracy + 1])
             if not quantity:
                 continue
             if not self._api_wr.create_new_order(
@@ -653,7 +706,8 @@ class BinanceWorker(exchange_base.IExchangeBase):
             raise ValueError("Bad symbol from potential_buy_list")
         price_filter: dict = symbol_info["filters"][0]
         lot_size_filter: dict = symbol_info["filters"][1]
-        return price_filter, lot_size_filter
+        min_notional_filter: dict = symbol_info["filters"][2]
+        return price_filter, lot_size_filter, min_notional_filter
 
 
 if __name__ == '__main__':
@@ -661,8 +715,10 @@ if __name__ == '__main__':
 
     conf.init_global_config("/home/andrew/dev/crypto_bot/bot.cfg")
     api_wr_test = ApiWrapperTest(config=conf.global_core_conf)
-    worker = BinanceWorker(config=conf.global_core_conf, api_wrapper=api_wr_test)
-    worker.run_worker()
+    LOG.debug(api_wr_test.sorted_trade_pairs_btc(), content_type="json")
+
+    # worker = BinanceWorker(config=conf.global_core_conf, api_wrapper=api_wr_test)
+    # worker.run_worker()
 
     # LOG.debug(worker.open_orders_by_side("SELL"), content_type="json")
     # LOG.debug(worker.sorted_trade_pairs_btc(), content_type="json")

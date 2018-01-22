@@ -1,6 +1,6 @@
 # Return count numbers after comma in float
 # Max count numbers after comma = 12
-def count_after_dot(number: float):
+def count_after_dot(number: float) -> int:
     s = "{:.12f}".format(number)
     for c in reversed(s):
         if c == '0':
