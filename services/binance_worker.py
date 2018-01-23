@@ -19,8 +19,8 @@ class ApiWrapperBase(object):
             side: str,
             order_type: str,
             quantity: float,
-            price: float=None,
-            time_in_force: str=None
+            price: float = None,
+            time_in_force: str = None
     ) -> bool:
         pass
 
@@ -56,8 +56,8 @@ class ApiWrapperMain(ApiWrapperBase):
             side: str,
             order_type: str,
             quantity: float,
-            price: float=None,
-            time_in_force: str=None
+            price: float = None,
+            time_in_force: str = None
     ) -> bool:
         res = self._api.create_new_order(
             symbol=symbol,
@@ -281,8 +281,8 @@ class ApiWrapperTest(ApiWrapperBase):
             side: str,
             order_type: str,
             quantity: float,
-            price: float=None,
-            time_in_force: str=None
+            price: float = None,
+            time_in_force: str = None
     ) -> bool:
         res = """{
                   "symbol": "BTCUSDT",
@@ -545,7 +545,7 @@ class ApiWrapperTest(ApiWrapperBase):
 
 
 class BinanceWorker(exchange_base.IExchangeBase):
-    def __init__(self, config, api_wrapper: ApiWrapperBase=None):
+    def __init__(self, config, api_wrapper: ApiWrapperBase = None):
         self._config = config
         if not api_wrapper:
             self._api_wr = ApiWrapperMain(config=config)
@@ -574,11 +574,12 @@ class BinanceWorker(exchange_base.IExchangeBase):
             if not all_trade_pairs_btc \
                     or not potential_buy_list \
                     or not acc_balance_assets_info \
-                    or not exchange_symbols_info\
+                    or not exchange_symbols_info \
                     or not initial_btc_info:
                 raise ValueError("Something went wrong and one from mandatory params are None")
 
-            self._generate_sell_orders_slow(all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list, exchange_symbols_info)
+            self._generate_sell_orders_slow(all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list,
+                                            exchange_symbols_info)
             self._generate_buy_orders_slow(potential_buy_list, exchange_symbols_info, initial_btc_info)
 
         except Exception as ex:
@@ -587,62 +588,69 @@ class BinanceWorker(exchange_base.IExchangeBase):
             LOG.info("BinanceWorker is shutting down!")
             self.release()
 
-    def _generate_sell_orders_slow(self, all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list, exchange_symbols_info):
+    def _generate_sell_orders_slow(self, all_trade_pairs_btc, acc_balance_assets_info, potential_buy_list,
+                                   exchange_symbols_info):
         # Loop for all of my assets except 'BTC' and create 'SELL' orders
         for asset in acc_balance_assets_info:
             LOG.debug("Try to generate 'SELL' orders for asset:{}".format(asset["asset"]))
             if asset["asset"] == "BTC":
                 continue
-            symbol: str = asset["asset"] + "BTC"
-            free_asset_balance = float(asset["free"])
-            total_asset_balance = free_asset_balance + float(asset["locked"])
+            asset["symbol"] = asset["asset"] + "BTC"
+            asset["total_balance_fl"] = float(asset["free"]) + float(asset["locked"])
             # Find trade pair with 'BTC' on exchange in current moment for our asset
-            curr_trade_info_for_asset = next((pr for pr in all_trade_pairs_btc if pr["symbol"] == symbol), None)
-            if curr_trade_info_for_asset:
-                ask_in_btc: float = float(curr_trade_info_for_asset["askPrice"]) - 0.00000001
-                total_asset_cost_in_btc = total_asset_balance * float(curr_trade_info_for_asset["lastPrice"])
+            trade_info_for_asset = next((pr for pr in all_trade_pairs_btc if pr["symbol"] == asset["symbol"]), None)
+            if trade_info_for_asset:
+                asset["ask_in_btc_fl"] = float(trade_info_for_asset["askPrice"]) - 0.00000001
+                asset["total_cost_in_btc_fl"] = asset["total_balance_fl"] * float(trade_info_for_asset["lastPrice"])
             else:
-                raise ValueError("curr_trade_info_for_asset is invalid")
+                raise ValueError("trade_info_for_asset is invalid")
             # If asset already bought early we don't buy it again
-            asset_in_buy_lst = next((pr for pr in potential_buy_list if pr["symbol"] == symbol), None)
+            asset_in_buy_lst = next((pr for pr in potential_buy_list if pr["symbol"] == asset["symbol"]), None)
             cfg_min_allow_lots_size_in_btc = self._config.getfloat("Exchange", "min_lots_size_in_btc", fallback=0.0001)
-            if asset_in_buy_lst and total_asset_cost_in_btc > cfg_min_allow_lots_size_in_btc:
+            if asset_in_buy_lst and asset["total_cost_in_btc_fl"] > cfg_min_allow_lots_size_in_btc:
                 potential_buy_list.remove(asset_in_buy_lst)
-
             # Analise for new 'SELL' order
-            cfg_min_profit_coef: float = self._config.getfloat("Exchange", "min_profit_coef", fallback=1.04)
-            filter_price, filter_lot_size, filter_notional =\
-                self._get_filters_for_order_fast(exchange_symbols_info, symbol)
-            accuracy = alg.count_after_dot(float(filter_lot_size["stepSize"]))
-            quantity = float(asset["free"][:accuracy+1])
+            cfg_min_profit_coef = self._config.getfloat("Exchange", "min_profit_coef", fallback=1.04)
+            filter_price, filter_lot_size, filter_notional = \
+                self._get_filters_for_order_fast(exchange_symbols_info, asset["symbol"])
+            sell_qty = alg.reduce_to_step_size(float(asset["free"]), float(filter_lot_size["stepSize"]))
             LOG.debug("Dump variables after Qty calculating. "
-                      "quantity:{}, accuracy:{}, cfg_min_profit_coef:{}, total_asset_cost_in_btc:{}, ask_in_btc:{}"
-                      .format(quantity, accuracy, cfg_min_profit_coef, total_asset_cost_in_btc, ask_in_btc))
-            if not quantity or free_asset_balance < quantity:
-                LOG.debug("Quantity too low for trading. Continue".format(quantity))
+                      "quantity:{}, cfg_min_profit_coef:{}, total_asset_cost_in_btc:{}, ask_in_btc:{}"
+                .format(
+                    f"{sell_qty:.8f}",
+                    f"{cfg_min_profit_coef:.8f}",
+                    f"{asset['total_cost_in_btc_fl']:.8f}",
+                    f"{asset['ask_in_btc_fl']:.8f}"
+                )
+            )
+            if not sell_qty \
+                    or float(asset["free"]) < sell_qty \
+                    or float(filter_lot_size["minQty"]) > sell_qty \
+                    or float(filter_lot_size["maxQty"]) < sell_qty:
+                LOG.debug("Quantity too low for trading. Continue".format(sell_qty))
                 continue
-            asset_last_trade: dict = self._api_wr.my_trades_by_symbol(symbol)[0]
-            LOG.debug(asset_last_trade, content_type="json")
-            if ask_in_btc > (float(asset_last_trade["price"]) * cfg_min_profit_coef):
+            asset_last_trade: dict = self._api_wr.my_trades_by_symbol(asset["symbol"])[0]
+            if asset["ask_in_btc_fl"] > (float(asset_last_trade["price"]) * cfg_min_profit_coef):
                 if not self._api_wr.create_new_order(
-                        symbol=symbol,
+                        symbol=asset["symbol"],
                         side=api.BnApiEnums.ORDER_SIDE_SELL,
                         order_type=api.BnApiEnums.ORDER_TYPE_LIMIT,
-                        quantity=quantity,
-                        price=ask_in_btc,
+                        quantity=sell_qty,
+                        price=asset["ask_in_btc_fl"],
                         time_in_force=api.BnApiEnums.TIME_IN_FORCE_GTC
                 ):
                     continue
             else:
-                LOG.debug("Check for loss time for symbol: {}".format(symbol))
-                cfg_loss_time: int = self._config.getint("Exchange", "loss_time_sec", fallback=604800)  # default - 7 days
-                if (tm.utc_timestamp() - int(asset_last_trade["time"])) > cfg_loss_time:
-                    LOG.debug("loss time has reached. Create order for sell: {}".format(symbol))
+                LOG.debug("Check for loss time for symbol: {}".format(asset["symbol"]))
+                cfg_loss_time_sec: int = self._config.getint("Exchange", "loss_time_sec",
+                                                         fallback=604800)  # default - 7 days
+                if (tm.utc_timestamp() - int(asset_last_trade["time"])) > cfg_loss_time_sec * 1000:
+                    LOG.debug("loss time has reached. Create order for sell: {}".format(asset["symbol"]))
                     if not self._api_wr.create_new_order(
-                            symbol=symbol,
+                            symbol=asset["symbol"],
                             side=api.BnApiEnums.ORDER_SIDE_SELL,
                             order_type=api.BnApiEnums.ORDER_TYPE_MARKET,
-                            quantity=quantity
+                            quantity=sell_qty
                     ):
                         continue
 
@@ -675,17 +683,14 @@ class BinanceWorker(exchange_base.IExchangeBase):
             if not bid or bid > float(filter_price["maxPrice"]) or bid < float(filter_price["minPrice"]):
                 continue
             # Calculate quantity
-            accuracy = alg.count_after_dot(float(filter_lot_size["stepSize"]))
-            quantity = available_btc_balance / bid
-            # Reduce quantity according to minimum step size
-            quantity = float(f"{quantity:.8f}"[:accuracy + 1])
-            if not quantity:
+            buy_qty = alg.reduce_to_step_size(available_btc_balance / bid, float(filter_lot_size["stepSize"]))
+            if not buy_qty:
                 continue
             if not self._api_wr.create_new_order(
                     symbol=symbol,
                     side=api.BnApiEnums.ORDER_SIDE_BUY,
                     order_type=api.BnApiEnums.ORDER_TYPE_LIMIT,
-                    quantity=quantity,
+                    quantity=buy_qty,
                     price=bid,
                     time_in_force=api.BnApiEnums.TIME_IN_FORCE_GTC
             ):
