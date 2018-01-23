@@ -1,7 +1,7 @@
 from enum import Enum
 from logger import logger
-import exchange_base
-import binance_worker
+from services import exchange_base
+from services import binance_worker
 
 LOG = logger.LOG
 

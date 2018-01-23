@@ -3,8 +3,8 @@ from logger import logger
 import json
 from utils import utc_timestamp as tm
 from utils import algorithm as alg
-import exchange_base
-import binance_rest_api as api
+from services import exchange_base
+from services import binance_rest_api as api
 
 LOG = logger.LOG
 

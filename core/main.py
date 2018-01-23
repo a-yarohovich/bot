@@ -1,3 +1,4 @@
+import setup_path
 import asyncio as aio
 import getopt
 import os
@@ -7,9 +8,8 @@ from typing import List
 import daemon
 from daemon import pidfile
 
-import async_db_adapter as db
 import global_event_loop as gloop
-from core import config as cfg
+import config as cfg
 from logger import logger
 from services import exchange_factory
 from utils import async_timer
@@ -23,28 +23,23 @@ class Application(object):
         self.loop = loop
         self.config_filename = None
         self.is_run_background = None
-        self.daemon_context = None
-        self.pg_connection = None
 
     def initialize(self) -> bool:
         try:
             self.init_argv_params()
             self.init_config()
-            self.init_daemon_context()
-            #self.init_bd_connection()
         except Exception as ex:
             LOG.error(ex.args[-1])
             return False
         return True
 
+    def is_daemon(self):
+        return self.is_run_background
+
     def release(self) -> bool:
         try:
             if self.loop and self.loop.is_running():
                 self.loop.stop()
-            if self.daemon_context:
-                self.daemon_context.close()
-            if self.pg_connection:
-                self.pg_connection.close()
         except Exception as ex:
             LOG.error(ex.args[-1])
             return False
@@ -61,36 +56,14 @@ class Application(object):
                 self.is_run_background = True
             else:
                 raise ValueError(__file__ + " -c <config_file>")
+        LOG.info("After init argv param. Config filename: {}, run in background: {}"
+                 .format(self.config_filename, self.is_run_background))
 
     def init_config(self):
+        LOG.info("Config file:{}".format(self.config_filename))
         cfg.init_global_config(self.config_filename)
 
-    def init_daemon_context(self):
-        if self.is_run_background:
-            file_pid_lock = __file__ + ".lock"
-            LOG.info('Daemonize this application')
-            self.daemon_context = daemon.DaemonContext(
-                working_directory=os.getcwd(),  # Get working dir
-                umask=0o002,
-                pidfile=pidfile.PIDLockFile(file_pid_lock),  # Create a pid file
-                files_preserve=[LOG.log_file_handler.stream, ],  # Keep the logger file after fork
-            )
-
-    def init_bd_connection(self):
-        gloop.push_async_task(callback_func=self.on_db_connection_done, run_func=db.async_create_pg_conn)
-        #self.loop.run_forever()
-
-    def on_db_connection_done(self, future: aio.Future):
-        if not future.result():
-            LOG.error("Error with opening DB. Terminate application")
-            sys.exit(1)
-        LOG.debug("init_bd_coonection: {}".format(future.result()))
-        self.pg_connection = future.result()
-        self.start()
-
     def run(self) -> bool:
-        if not self.initialize():
-            sys.exit(1)
         self._async_start()
         return True
 
@@ -102,8 +75,8 @@ class Application(object):
         self.loop.run_forever()
 
     def start(self):
-        LOG.debug("Starting tasks for application")
         host = cfg.global_core_conf.get("Exchange", "host", fallback="https://api.binance.com")
+        LOG.debug("Starting tasks for application for host:{}".format(host))
         if "binance" in host:
             worker = exchange_factory.ExchangeFactory.create_exchange(
                 exchange_factory.Exchanges.BINANCE,
@@ -125,13 +98,30 @@ class Application(object):
             sys.exit(2)
 
     def awake(self, future: aio.Future):
-        self.start()
+        if future:
+            self.start()
+        else:
+            LOG.error("{} - Invalid future. Aborting...".format(LOG.func_name()))
+            sys.exit(4)
 
 
 def main(argv):
     app = Application(argv, loop=gloop.global_ev_loop)
     try:
-        app.run()
+        app.initialize()
+        if app.is_daemon():
+            file_pid_lock = __file__ + ".lock"
+            LOG.info("Daemonize this application. File lock:{}".format(file_pid_lock))
+            with daemon.DaemonContext(
+                working_directory=os.getcwd(),  # Get working dir
+                umask=0o002,
+                pidfile=pidfile.PIDLockFile(file_pid_lock),  # Create a pid file
+                files_preserve=[LOG.log_file_handler.stream, ],  # Keep the logger file after fork
+            ):
+                app.run()
+        else:
+            app.run()
+
     finally:
         app.release()
 

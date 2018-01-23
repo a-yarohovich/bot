@@ -22,6 +22,7 @@ def reduce_to_step_size(num: float, step: float) -> float:
     exponent = s[:s.find(".")]
     return round(float(exponent) * step, 16)
 
+
 if __name__ == "__main__":
     """c = count_after_dot(0.001)
     total = 0.036963
@@ -33,4 +34,4 @@ if __name__ == "__main__":
     a = 192.0
     print(f"{a:.12f}")"""
 
-print(reduce_to_step_size(0.036963, 0.0001))
+#print(reduce_to_step_size(0.036963, 0.0001))

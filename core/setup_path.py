@@ -14,3 +14,4 @@ def print_sys_path():
 
 
 correct_python_path()
+print_sys_path()
