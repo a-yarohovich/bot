@@ -660,7 +660,8 @@ class BinanceWorker(exchange_base.IExchangeBase):
         init_free_btc_balance = float(initial_btc_info["free"])
         for buy_pair in potential_buy_list[0:cfg_trade_prs_lim]:
             symbol = buy_pair["symbol"]
-            LOG.debug("Try to generate 'BUY' orders for symbol:{}".format(symbol))
+            LOG.debug("Try to generate 'BUY' orders for \nsymbol: {}\ninit_btc_balance: {}\ncfg_trade_prs_lim: {}"
+                      .format(symbol, init_free_btc_balance, cfg_trade_prs_lim))
             filter_price, filter_lot_size, filter_notional = \
                 self._get_filters_for_order_fast(exchange_symbols_info, symbol)
             available_btc_balance = init_free_btc_balance / cfg_trade_prs_lim
@@ -685,8 +686,9 @@ class BinanceWorker(exchange_base.IExchangeBase):
             # Calculate quantity
             buy_qty = alg.reduce_to_step_size(available_btc_balance / bid, float(filter_lot_size["stepSize"]))
             if not buy_qty:
+                LOG.debug("Buy quantity isn't valid. Continue.")
                 continue
-            if not self._api_wr.create_new_order(
+            if self._api_wr.create_new_order(
                     symbol=symbol,
                     side=api.BnApiEnums.ORDER_SIDE_BUY,
                     order_type=api.BnApiEnums.ORDER_TYPE_LIMIT,
@@ -694,7 +696,9 @@ class BinanceWorker(exchange_base.IExchangeBase):
                     price=bid,
                     time_in_force=api.BnApiEnums.TIME_IN_FORCE_GTC
             ):
-                continue
+                LOG.debug("BUY order successfully created")
+            else:
+                LOG.debug("BUY order create has failed")
 
     def _acc_btc_info_slow(self) -> dict:
         # query every time in loop because lod value is not represented
