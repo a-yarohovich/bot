@@ -614,13 +614,13 @@ class BinanceWorker(exchange_base.IExchangeBase):
             filter_price, filter_lot_size, filter_notional = \
                 self._get_filters_for_order_fast(exchange_symbols_info, asset["symbol"])
             sell_qty = alg.reduce_to_step_size(float(asset["free"]), float(filter_lot_size["stepSize"]))
-            LOG.debug("Dump variables after Qty calculating. "
-                      "quantity:{}, cfg_min_profit_coef:{}, total_asset_cost_in_btc:{}, ask_in_btc:{}"
+            LOG.debug("Dump variables after Qty calculating."
+                      "\nQuantity: {}\nCfg min profit coef: {}\nTotal asset cost: {} 'BTC'\nAsk: {} 'BTC'"
                 .format(
-                    f"{sell_qty:.8f}",
-                    f"{cfg_min_profit_coef:.8f}",
-                    f"{asset['total_cost_in_btc_fl']:.8f}",
-                    f"{asset['ask_in_btc_fl']:.8f}"
+                    f"{sell_qty:.9f}",
+                    f"{cfg_min_profit_coef:.9f}",
+                    f"{asset['total_cost_in_btc_fl']:.9f}",
+                    f"{asset['ask_in_btc_fl']:.9f}"
                 )
             )
             if not sell_qty \
@@ -641,11 +641,11 @@ class BinanceWorker(exchange_base.IExchangeBase):
                 ):
                     continue
             else:
-                LOG.debug("Check for loss time for symbol: {}".format(asset["symbol"]))
+                LOG.debug("Check loss time for symbol: {}".format(asset["symbol"]))
                 cfg_loss_time_sec: int = self._config.getint("Exchange", "loss_time_sec",
                                                          fallback=604800)  # default - 7 days
                 if (tm.utc_timestamp() - int(asset_last_trade["time"])) > cfg_loss_time_sec * 1000:
-                    LOG.debug("loss time has reached. Create order for sell: {}".format(asset["symbol"]))
+                    LOG.debug("Loss time has reached. Create order for symbol: {}".format(asset["symbol"]))
                     if not self._api_wr.create_new_order(
                             symbol=asset["symbol"],
                             side=api.BnApiEnums.ORDER_SIDE_SELL,
@@ -660,18 +660,16 @@ class BinanceWorker(exchange_base.IExchangeBase):
         init_free_btc_balance = float(initial_btc_info["free"])
         for buy_pair in potential_buy_list[0:cfg_trade_prs_lim]:
             symbol = buy_pair["symbol"]
-            LOG.debug("Try to generate 'BUY' orders for \nsymbol: {}\ninit_btc_balance: {}\ncfg_trade_prs_lim: {}"
-                      .format(symbol, init_free_btc_balance, cfg_trade_prs_lim))
+            LOG.debug("Try to generate 'BUY' orders for \nSymbol: {}\nInitial btc balance: {} 'BTC'\nTrade pair limit: {}"
+                      .format(symbol, f"{init_free_btc_balance:.9f}", cfg_trade_prs_lim))
             filter_price, filter_lot_size, filter_notional = \
                 self._get_filters_for_order_fast(exchange_symbols_info, symbol)
             available_btc_balance = init_free_btc_balance / cfg_trade_prs_lim
             min_btc_balance_size = float(filter_notional["minNotional"])
             if available_btc_balance < min_btc_balance_size:
-                LOG.debug("Insufficient btc balance = {0} with minimum balance = {1}."
-                          " Try to increase available balance to initial value = {2}"
-                          .format(f"{available_btc_balance:.8f}",
-                                  f"{min_btc_balance_size:.8f}",
-                                  f"{init_free_btc_balance:.8f}"))
+                LOG.debug("Insufficient btc balance.\nAvailable balance: {0} 'BTC'\nMinimum balance: {1} 'BTC'"
+                          "\nTry to increase available balance to initial btc balance."
+                          .format(f"{available_btc_balance:.9f}", f"{min_btc_balance_size:.9f}"))
                 if init_free_btc_balance > min_btc_balance_size:
                     available_btc_balance = min_btc_balance_size
                 else:
