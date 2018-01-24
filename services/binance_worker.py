@@ -680,7 +680,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
                     available_btc_balance = init_free_btc_balance
                 else:
                     LOG.debug("Insufficient btc balance. Stop generating.")
-                    #return
+                    return
             else:
                 init_free_btc_balance = init_free_btc_balance - available_btc_balance
             # Calculate bid
