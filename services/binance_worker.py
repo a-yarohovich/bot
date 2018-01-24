@@ -689,8 +689,8 @@ class BinanceWorker(exchange_base.IExchangeBase):
                       "\nbid: {}\nBid price: {} 'BTC'\nTick size: {}"
                 .format(
                     f"{bid:.9f}",
-                    f"{buy_pair['bidPrice']:.9f}",
-                    f"{filter_price['tickSize']:.9f}"
+                    buy_pair['bidPrice'],
+                    filter_price['tickSize']
                 )
             )
             if not bid or bid > float(filter_price["maxPrice"]) or bid < float(filter_price["minPrice"]):
@@ -698,12 +698,11 @@ class BinanceWorker(exchange_base.IExchangeBase):
             # Calculate quantity
             buy_qty = alg.reduce_to_step_size(available_btc_balance / bid, float(filter_lot_size["stepSize"]))
             LOG.debug("Dump variables after buy Qty calculating."
-                      "\nQuantity: {}\nAvailable balance: {} 'BTC'\nStep size: {}\nInit free balance: {} 'BTC'"
+                      "\nQuantity: {}\nAvailable balance: {} 'BTC'\nStep size: {}"
                 .format(
                     f"{buy_qty:.9f}",
                     f"{available_btc_balance:.9f}",
-                    f"{filter_lot_size['stepSize']:.9f}",
-                    f"{init_free_btc_balance:.9f}"
+                    filter_lot_size['stepSize']
                 )
             )
             if not buy_qty:
