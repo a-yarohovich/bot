@@ -597,13 +597,15 @@ class BinanceWorker(exchange_base.IExchangeBase):
                 continue
             asset["symbol"] = asset["asset"] + "BTC"
             asset["total_balance_fl"] = float(asset["free"]) + float(asset["locked"])
+            filter_price, filter_lot_size, filter_notional = \
+                self._get_filters_for_order_fast(exchange_symbols_info, asset["symbol"])
             # Find trade pair with 'BTC' on exchange in current moment for our asset
             trade_info_for_asset = next((pr for pr in all_trade_pairs_btc if pr["symbol"] == asset["symbol"]), None)
-            if trade_info_for_asset:
-                asset["ask_in_btc_fl"] = float(trade_info_for_asset["askPrice"]) - 0.00000001
+            if trade_info_for_asset and filter_price:
+                asset["ask_in_btc_fl"] = float(trade_info_for_asset["askPrice"]) - float(filter_price["tickSize"]) # 0.00000001
                 asset["total_cost_in_btc_fl"] = asset["total_balance_fl"] * float(trade_info_for_asset["lastPrice"])
             else:
-                raise ValueError("trade_info_for_asset is invalid")
+                raise ValueError("trade_info_for_asset or filter_price is invalid")
             # If asset already bought early we don't buy it again
             asset_in_buy_lst = next((pr for pr in potential_buy_list if pr["symbol"] == asset["symbol"]), None)
             cfg_min_allow_lots_size_in_btc = self._config.getfloat("Exchange", "min_lots_size_in_btc", fallback=0.0001)
@@ -611,8 +613,6 @@ class BinanceWorker(exchange_base.IExchangeBase):
                 potential_buy_list.remove(asset_in_buy_lst)
             # Analise for new 'SELL' order
             cfg_min_profit_coef = self._config.getfloat("Exchange", "min_profit_coef", fallback=1.04)
-            filter_price, filter_lot_size, filter_notional = \
-                self._get_filters_for_order_fast(exchange_symbols_info, asset["symbol"])
             sell_qty = alg.reduce_to_step_size(float(asset["free"]), float(filter_lot_size["stepSize"]))
             LOG.debug("Dump variables after Qty calculating."
                       "\nQuantity: {}\nCfg min profit coef: {}\nTotal asset cost: {} 'BTC'\nAsk: {} 'BTC'"
@@ -631,7 +631,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
                 continue
             asset_last_trade: dict = self._api_wr.my_trades_by_symbol(asset["symbol"])[0]
             if asset["ask_in_btc_fl"] > (float(asset_last_trade["price"]) * cfg_min_profit_coef):
-                if not self._api_wr.create_new_order(
+                if self._api_wr.create_new_order(
                         symbol=asset["symbol"],
                         side=api.BnApiEnums.ORDER_SIDE_SELL,
                         order_type=api.BnApiEnums.ORDER_TYPE_LIMIT,
@@ -639,6 +639,9 @@ class BinanceWorker(exchange_base.IExchangeBase):
                         price=asset["ask_in_btc_fl"],
                         time_in_force=api.BnApiEnums.TIME_IN_FORCE_GTC
                 ):
+                    LOG.debug("SELL order has successfully created")
+                else:
+                    LOG.debug("SELL order create has failed")
                     continue
             else:
                 LOG.debug("Check loss time for symbol: {}".format(asset["symbol"]))
@@ -646,12 +649,15 @@ class BinanceWorker(exchange_base.IExchangeBase):
                                                          fallback=604800)  # default - 7 days
                 if (tm.utc_timestamp() - int(asset_last_trade["time"])) > cfg_loss_time_sec * 1000:
                     LOG.debug("Loss time has reached. Create order for symbol: {}".format(asset["symbol"]))
-                    if not self._api_wr.create_new_order(
+                    if self._api_wr.create_new_order(
                             symbol=asset["symbol"],
                             side=api.BnApiEnums.ORDER_SIDE_SELL,
                             order_type=api.BnApiEnums.ORDER_TYPE_MARKET,
                             quantity=sell_qty
                     ):
+                        LOG.debug("SELL order by loss time has successfully created")
+                    else:
+                        LOG.debug("SELL order by loss time create has failed")
                         continue
 
     def _generate_buy_orders_slow(self, potential_buy_list, exchange_symbols_info, initial_btc_info):
@@ -671,18 +677,35 @@ class BinanceWorker(exchange_base.IExchangeBase):
                           "\nTry to increase available balance to initial btc balance."
                           .format(f"{available_btc_balance:.9f}", f"{min_btc_balance_size:.9f}"))
                 if init_free_btc_balance > min_btc_balance_size:
-                    available_btc_balance = min_btc_balance_size
+                    available_btc_balance = init_free_btc_balance
                 else:
                     LOG.debug("Insufficient btc balance. Stop generating.")
-                    return
+                    #return
             else:
                 init_free_btc_balance = init_free_btc_balance - available_btc_balance
             # Calculate bid
-            bid = float(buy_pair["bidPrice"]) + float(filter_price["tickSize"])
+            bid = float(buy_pair["bidPrice"]) + float(filter_price["tickSize"]) # +
+            LOG.debug("Dump variables after bid calculating."
+                      "\nbid: {}\nBid price: {} 'BTC'\nTick size: {}"
+                .format(
+                    f"{bid:.9f}",
+                    f"{buy_pair['bidPrice']:.9f}",
+                    f"{filter_price['tickSize']:.9f}"
+                )
+            )
             if not bid or bid > float(filter_price["maxPrice"]) or bid < float(filter_price["minPrice"]):
                 continue
             # Calculate quantity
             buy_qty = alg.reduce_to_step_size(available_btc_balance / bid, float(filter_lot_size["stepSize"]))
+            LOG.debug("Dump variables after buy Qty calculating."
+                      "\nQuantity: {}\nAvailable balance: {} 'BTC'\nStep size: {}\nInit free balance: {} 'BTC'"
+                .format(
+                    f"{buy_qty:.9f}",
+                    f"{available_btc_balance:.9f}",
+                    f"{filter_lot_size['stepSize']:.9f}",
+                    f"{init_free_btc_balance:.9f}"
+                )
+            )
             if not buy_qty:
                 LOG.debug("Buy quantity isn't valid. Continue.")
                 continue
@@ -694,7 +717,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
                     price=bid,
                     time_in_force=api.BnApiEnums.TIME_IN_FORCE_GTC
             ):
-                LOG.debug("BUY order successfully created")
+                LOG.debug("BUY order has successfully created")
             else:
                 LOG.debug("BUY order create has failed")
 
