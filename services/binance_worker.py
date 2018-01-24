@@ -679,10 +679,9 @@ class BinanceWorker(exchange_base.IExchangeBase):
                 if init_free_btc_balance > min_btc_balance_size:
                     available_btc_balance = init_free_btc_balance
                 else:
-                    LOG.debug("Insufficient btc balance. Stop generating.")
-                    return
-            else:
-                init_free_btc_balance = init_free_btc_balance - available_btc_balance
+                    LOG.debug("Insufficient btc balance for symbol: {}. Continue.".format(symbol))
+                    continue
+            init_free_btc_balance -= available_btc_balance
             # Calculate bid
             bid = float(buy_pair["bidPrice"]) + float(filter_price["tickSize"]) # +
             LOG.debug("Dump variables after bid calculating."
