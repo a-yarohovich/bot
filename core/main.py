@@ -3,6 +3,7 @@ import asyncio as aio
 import getopt
 import os
 import sys
+import signal
 from typing import List
 
 import daemon
@@ -18,11 +19,17 @@ LOG = logger.LOG
 
 
 class Application(object):
-    def __init__(self, argv: List[str], loop=gloop.global_ev_loop):
+    def __init__(self, argv: List[str]):
         self.argv = argv
-        self.loop = loop
         self.config_filename = None
         self.is_run_background = None
+        self.is_stopped = False
+        signal.signal(signal.SIGINT, self.stopping)
+        signal.signal(signal.SIGTERM, self.stopping)
+
+    def stopping(self, signum, frame):
+        LOG.info("SIGTEMR signal has received")
+        self.is_stopped = True
 
     def initialize(self) -> bool:
         try:
@@ -35,15 +42,6 @@ class Application(object):
 
     def is_daemon(self):
         return self.is_run_background
-
-    def release(self) -> bool:
-        try:
-            if self.loop and self.loop.is_running():
-                self.loop.stop()
-        except Exception as ex:
-            LOG.error(ex.args[-1])
-            return False
-        return True
 
     def init_argv_params(self):
         optlist, args = getopt.getopt(self.argv, "hbc:", ["config="])
@@ -64,6 +62,7 @@ class Application(object):
         cfg.init_global_config(self.config_filename)
 
     def run(self) -> bool:
+        LOG.debug("Application has ran")
         self._async_start()
         return True
 
@@ -72,7 +71,6 @@ class Application(object):
         if not timer.start():
             LOG.error("{} - unknown error".format(LOG.func_name()))
             sys.exit(2)
-        self.loop.run_forever()
 
     def start(self):
         host = cfg.global_core_conf.get("Exchange", "host", fallback="https://api.binance.com")
@@ -93,6 +91,9 @@ class Application(object):
         else:
             LOG.error("Did't set a name of working exchange! Abort")
             sys.exit(1)
+        if self.is_stopped:
+            LOG.info("Stopped application and exit")
+            sys.exit(0)
         timer = async_timer.Timer(self.awake, cfg.global_core_conf.getint("Exchange", "awake_timeout_sec", fallback=300))
         if not timer.start():
             sys.exit(2)
@@ -106,24 +107,28 @@ class Application(object):
 
 
 def main(argv):
-    app = Application(argv, loop=gloop.global_ev_loop)
+    app = Application(argv)
+    file_pid_lock = __file__ + ".lock"
+    LOG.debug("{}".format(file_pid_lock))
     try:
+        def run():
+            if app.run():
+                gloop.global_ev_loop.run_forever()
+
         app.initialize()
         if app.is_daemon():
-            file_pid_lock = __file__ + ".lock"
-            LOG.info("Daemonize this application. File lock:{}".format(file_pid_lock))
+            LOG.info("Daemonize this application. Lock file: {} Pwd: {}".format(file_pid_lock, os.getcwd()))
             with daemon.DaemonContext(
                 working_directory=os.getcwd(),  # Get working dir
                 umask=0o002,
                 pidfile=pidfile.PIDLockFile(file_pid_lock),  # Create a pid file
                 files_preserve=[LOG.log_file_handler.stream, ],  # Keep the logger file after fork
             ):
-                app.run()
+                run()
         else:
-            app.run()
-
-    finally:
-        app.release()
+            run()
+    except Exception as ex:
+        LOG.error("Unknown exception has caught:{}".format(ex.args[-1]))
 
 
 if __name__ == "__main__":
