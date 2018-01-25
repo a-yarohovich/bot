@@ -673,7 +673,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
             filter_price, filter_lot_size, filter_notional = \
                 self._get_filters_for_order_fast(exchange_symbols_info, symbol)
             min_allow_btc_balance = float(filter_notional["minNotional"])
-            if estimated_by_pair < min_allow_btc_balance:
+            if estimated_by_pair < min_allow_btc_balance or free_btc_balance < min_allow_btc_balance:
                 LOG.debug("Insufficient btc balance.\nAvailable balance: {0} 'BTC'\nMinimum balance: {1} 'BTC'"
                           "\nTry to increase available balance to initial btc balance."
                           .format(f"{estimated_by_pair:.9f}", f"{min_allow_btc_balance:.9f}"))
