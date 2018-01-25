@@ -663,25 +663,25 @@ class BinanceWorker(exchange_base.IExchangeBase):
     def _generate_buy_orders_slow(self, potential_buy_list, exchange_symbols_info, initial_btc_info):
         # Loop for all potential_buy_list and create 'BUY' order
         cfg_trade_prs_lim = self._config.getint("Exchange", "trade_pairs_limit", fallback=10)
-        init_free_btc_balance = float(initial_btc_info["free"])
+        free_btc_balance = float(initial_btc_info["free"])
+        estimated_by_pair = free_btc_balance / cfg_trade_prs_lim
         for buy_pair in potential_buy_list[0:cfg_trade_prs_lim]:
             symbol = buy_pair["symbol"]
-            LOG.debug("Try to generate 'BUY' orders for \nSymbol: {}\nInitial btc balance: {} 'BTC'\nTrade pair limit: {}"
-                      .format(symbol, f"{init_free_btc_balance:.9f}", cfg_trade_prs_lim))
+            LOG.debug("Try to generate 'BUY' orders for \nSymbol: {}\nFree balance: {} 'BTC'\nTrade pair limit: {}"
+                      .format(symbol, f"{free_btc_balance:.9f}", cfg_trade_prs_lim))
             filter_price, filter_lot_size, filter_notional = \
                 self._get_filters_for_order_fast(exchange_symbols_info, symbol)
-            available_btc_balance = init_free_btc_balance / cfg_trade_prs_lim
-            min_btc_balance_size = float(filter_notional["minNotional"])
-            if available_btc_balance < min_btc_balance_size:
+            min_allow_btc_balance = float(filter_notional["minNotional"])
+            if estimated_by_pair < min_allow_btc_balance:
                 LOG.debug("Insufficient btc balance.\nAvailable balance: {0} 'BTC'\nMinimum balance: {1} 'BTC'"
                           "\nTry to increase available balance to initial btc balance."
-                          .format(f"{available_btc_balance:.9f}", f"{min_btc_balance_size:.9f}"))
-                if init_free_btc_balance > min_btc_balance_size:
-                    available_btc_balance = init_free_btc_balance
+                          .format(f"{estimated_by_pair:.9f}", f"{min_allow_btc_balance:.9f}"))
+                if free_btc_balance > min_allow_btc_balance:
+                    estimated_by_pair = free_btc_balance
                 else:
                     LOG.debug("Insufficient btc balance for symbol: {}. Continue.".format(symbol))
                     continue
-            init_free_btc_balance -= available_btc_balance
+            free_btc_balance -= estimated_by_pair
             # Calculate bid
             bid = float(buy_pair["bidPrice"]) + float(filter_price["tickSize"]) # +
             LOG.debug("Dump variables after bid calculating."
@@ -695,12 +695,12 @@ class BinanceWorker(exchange_base.IExchangeBase):
             if not bid or bid > float(filter_price["maxPrice"]) or bid < float(filter_price["minPrice"]):
                 continue
             # Calculate quantity
-            buy_qty = alg.reduce_to_step_size(available_btc_balance / bid, float(filter_lot_size["stepSize"]))
+            buy_qty = alg.reduce_to_step_size(estimated_by_pair / bid, float(filter_lot_size["stepSize"]))
             LOG.debug("Dump variables after buy Qty calculating."
                       "\nQuantity: {}\nAvailable balance: {} 'BTC'\nStep size: {}"
                 .format(
                     f"{buy_qty:.9f}",
-                    f"{available_btc_balance:.9f}",
+                    f"{estimated_by_pair:.9f}",
                     filter_lot_size['stepSize']
                 )
             )
