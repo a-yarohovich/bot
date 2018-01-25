@@ -884,8 +884,8 @@ if __name__ == '__main__':
 
     conf.init_global_config("/home/andrew/dev/crypto_bot/bot.cfg")
     api = BinanceRestApi(conf.global_core_conf)
-    # LOG.debug(json.dumps(api.exchange_info(), sort_keys=False, indent=2))
-    LOG.debug(json.dumps(api.my_trades(symbol="LSKBTC", timestamp=tm.utc_timestamp()), sort_keys=False, indent=2))
+    LOG.debug(json.dumps(api.exchange_info(), sort_keys=False, indent=2))
+    tr = api.my_trades(symbol="MCOBTC", timestamp=tm.utc_timestamp(), limit=1)
 """
     LOG.debug(json.dumps(api.ping_server()))
     LOG.debug(json.dumps(api.fetch_server_time()))

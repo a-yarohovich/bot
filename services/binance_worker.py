@@ -120,7 +120,7 @@ class ApiWrapperMain(ApiWrapperBase):
         return res
 
     def my_trades_by_symbol(self, symbol: str) -> List[dict]:
-        res = self._api.my_trades(symbol=symbol, timestamp=tm.utc_timestamp(), recvWindow=5000)
+        res = self._api.my_trades(symbol=symbol, timestamp=tm.utc_timestamp(), recvWindow=5000, limit=1)
         LOG.debug(res, content_type="json")
         return res
 
@@ -602,7 +602,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
             # Find trade pair with 'BTC' on exchange in current moment for our asset
             trade_info_for_asset = next((pr for pr in all_trade_pairs_btc if pr["symbol"] == asset["symbol"]), None)
             if trade_info_for_asset and filter_price:
-                asset["ask_in_btc_fl"] = float(trade_info_for_asset["askPrice"]) - float(filter_price["tickSize"]) # 0.00000001
+                asset["ask_in_btc_fl"] = float(trade_info_for_asset["askPrice"]) - float(filter_price["tickSize"])
                 asset["total_cost_in_btc_fl"] = asset["total_balance_fl"] * float(trade_info_for_asset["lastPrice"])
             else:
                 raise ValueError("trade_info_for_asset or filter_price is invalid")
@@ -629,8 +629,9 @@ class BinanceWorker(exchange_base.IExchangeBase):
                     or float(filter_lot_size["maxQty"]) < sell_qty:
                 LOG.debug("Quantity too low for trading. Continue".format(sell_qty))
                 continue
-            asset_last_trade: dict = self._api_wr.my_trades_by_symbol(asset["symbol"])[0]
-            if asset["ask_in_btc_fl"] > (float(asset_last_trade["price"]) * cfg_min_profit_coef):
+            asset_last_trade: List[dict] = self._api_wr.my_trades_by_symbol(asset["symbol"])
+            last_trade_price: float = float(asset_last_trade[0]["price"])
+            if asset["ask_in_btc_fl"] > last_trade_price * cfg_min_profit_coef:
                 if self._api_wr.create_new_order(
                         symbol=asset["symbol"],
                         side=api.BnApiEnums.ORDER_SIDE_SELL,
@@ -647,7 +648,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
                 LOG.debug("Check loss time for symbol: {}".format(asset["symbol"]))
                 cfg_loss_time_sec: int = self._config.getint("Exchange", "loss_time_sec",
                                                          fallback=604800)  # default - 7 days
-                if (tm.utc_timestamp() - int(asset_last_trade["time"])) > cfg_loss_time_sec * 1000:
+                if (tm.utc_timestamp() - int(asset_last_trade[0]["time"])) > cfg_loss_time_sec * 1000:
                     LOG.debug("Loss time has reached. Create order for symbol: {}".format(asset["symbol"]))
                     if self._api_wr.create_new_order(
                             symbol=asset["symbol"],
@@ -683,7 +684,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
                     continue
             free_btc_balance -= estimated_by_pair
             # Calculate bid
-            bid = float(buy_pair["bidPrice"]) + float(filter_price["tickSize"]) # +
+            bid = float(buy_pair["bidPrice"]) + float(filter_price["tickSize"])
             LOG.debug("Dump variables after bid calculating."
                       "\nbid: {}\nBid price: {} 'BTC'\nTick size: {}"
                 .format(
