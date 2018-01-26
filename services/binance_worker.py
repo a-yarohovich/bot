@@ -94,10 +94,11 @@ class ApiWrapperMain(ApiWrapperBase):
             bid = float(key["bidPrice"])
             volume24h = float(key["quoteVolume"])
             change_percent = float(key["priceChangePercent"])
-            rank = ((ask - bid) / bid) * volume24h * (1 - ((change_percent * 1.2) / 100))
+            rank = ((ask - bid) / bid) * volume24h * (1 - ((change_percent * percent_multiply_coef) / 100))
             LOG.debug("symbol:{} rank:{}".format(key["symbol"], str(rank)))
             return rank
 
+        percent_multiply_coef = self._config.getfloat("Rank", "percent_multiply_coef", fallback=2)
         pairs_lst: List[dict] = self._api.fetch_ticker_24h()
         only_btc_pairs_lst: list = \
             filter(

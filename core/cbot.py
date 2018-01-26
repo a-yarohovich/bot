@@ -26,6 +26,7 @@ class Application(object):
         self.is_stopped = False
         signal.signal(signal.SIGINT, self.stopping)
         signal.signal(signal.SIGTERM, self.stopping)
+        signal.signal(signal.SIGUSR1, self.init_config)
 
     def stopping(self, signum, frame):
         LOG.info("SIGTEMR signal has received")
@@ -57,7 +58,7 @@ class Application(object):
         LOG.info("After init argv param. Config filename: {}, run in background: {}"
                  .format(self.config_filename, self.is_run_background))
 
-    def init_config(self):
+    def init_config(self, signum=None, frame=None):
         LOG.info("Config file:{}".format(self.config_filename))
         cfg.init_global_config(self.config_filename)
 
@@ -115,7 +116,8 @@ def main(argv):
             if app.run():
                 gloop.global_ev_loop.run_forever()
 
-        app.initialize()
+        if not app.initialize():
+            sys.exit(5)
         if app.is_daemon():
             LOG.info("Daemonize this application. Lock file: {} Pwd: {}".format(file_pid_lock, os.getcwd()))
             with daemon.DaemonContext(
