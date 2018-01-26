@@ -484,7 +484,7 @@ class ApiWrapperTest(ApiWrapperBase):
             bid = float(key["bidPrice"])
             volume24h = float(key["quoteVolume"])
             change_percent = float(key["priceChangePercent"])
-            rank = ((ask - bid) / bid) * volume24h * (1 + (change_percent / 100))
+            rank = ((ask - bid) / bid) * volume24h * (1 - (change_percent / 100))
             LOG.debug("symbol:{} rank:{}".format(key["symbol"], str(rank)))
             return rank
 
