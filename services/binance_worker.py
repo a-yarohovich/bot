@@ -94,7 +94,7 @@ class ApiWrapperMain(ApiWrapperBase):
             bid = float(key["bidPrice"])
             volume24h = float(key["quoteVolume"])
             change_percent = float(key["priceChangePercent"])
-            rank = ((ask - bid) / bid) * volume24h * (1 + (change_percent / 100))
+            rank = ((ask - bid) / bid) * volume24h * (1 - ((change_percent * 1.2) / 100))
             LOG.debug("symbol:{} rank:{}".format(key["symbol"], str(rank)))
             return rank
 
@@ -108,7 +108,7 @@ class ApiWrapperMain(ApiWrapperBase):
                 pairs_lst
             )
         res = sorted(only_btc_pairs_lst, key=sort_func, reverse=True)
-        LOG.debug(res, content_type="json", max_symbols=1024)
+        LOG.debug(res, content_type="json", max_symbols=2048)
         return res
 
     def acc_balance_for_assets(self) -> List[dict]:
@@ -608,8 +608,7 @@ class BinanceWorker(exchange_base.IExchangeBase):
                 raise ValueError("trade_info_for_asset or filter_price is invalid")
             # If asset already bought early we don't buy it again
             asset_in_buy_lst = next((pr for pr in potential_buy_list if pr["symbol"] == asset["symbol"]), None)
-            cfg_min_allow_lots_size_in_btc = self._config.getfloat("Exchange", "min_lots_size_in_btc", fallback=0.0001)
-            if asset_in_buy_lst and asset["total_cost_in_btc_fl"] > cfg_min_allow_lots_size_in_btc:
+            if asset_in_buy_lst and asset["total_cost_in_btc_fl"] > float(filter_notional["minNotional"]):
                 potential_buy_list.remove(asset_in_buy_lst)
             # Analise for new 'SELL' order
             cfg_min_profit_coef = self._config.getfloat("Exchange", "min_profit_coef", fallback=1.04)
@@ -664,7 +663,10 @@ class BinanceWorker(exchange_base.IExchangeBase):
     def _generate_buy_orders_slow(self, potential_buy_list, exchange_symbols_info, initial_btc_info):
         # Loop for all potential_buy_list and create 'BUY' order
         cfg_trade_prs_lim = self._config.getint("Exchange", "trade_pairs_limit", fallback=10)
+        cfg_min_free_btc_split_coef = self._config.getint("Exchange", "min_free_btc_split_coef", fallback=200)
         free_btc_balance = float(initial_btc_info["free"])
+        if free_btc_balance < cfg_trade_prs_lim / cfg_min_free_btc_split_coef:
+            cfg_trade_prs_lim = 1
         estimated_by_pair = free_btc_balance / cfg_trade_prs_lim
         for buy_pair in potential_buy_list[0:cfg_trade_prs_lim]:
             symbol = buy_pair["symbol"]
